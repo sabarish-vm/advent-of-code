@@ -45,6 +45,46 @@ void read_matrix(char* path, int*** data, int** col_data, int* nrows)
     fclose(file);
 }
 
+int comp(const void* p1, const void* p2){
+    return *(int*)p1 - *(int*) p2    ;
+}
+
+void problem(int*** data , int** cols, int* nrows ) {
+    int* col1 = (int *) malloc(sizeof(int) * *nrows);
+    int* col2 = (int *) malloc(sizeof(int) * *nrows);
+    int n = *nrows;
+    int** matrix = *data;
+    for (int i=0 ; i < *nrows ; i++) {
+        col1[i] = matrix[i][0];
+        col2[i] = matrix[i][1];
+    }
+    qsort(col1, *nrows,sizeof(int),comp);
+    qsort(col2, *nrows,sizeof(int),comp);
+
+     int sol1 = 0 ;
+     int sol2 = 0 ;
+
+     // Problem 1
+     for (int i=0 ; i< *nrows ; i++) {
+         sol1 += abs(col1[i]-col2[i]);
+     }
+     printf("Part1 = %d\n",sol1);
+
+    // Problem 2
+    for (int i = 0; i<n ; i++){
+        int tv = col1[i];
+        for (int j=0 ; j<n;j++){
+            if (col2[j]==tv) {
+                sol2+=tv;
+            }
+        }
+    }
+     printf("Part2 = %d",sol2);
+
+    free(col1);
+    free(col2);
+}
+
 int main(){
     char path[] = "../input.txt";
     char* ppath = path;
@@ -52,11 +92,6 @@ int main(){
     int* col_data =NULL;
     int nrows = 0;
     read_matrix(ppath,&data,&col_data,&nrows);
-    for (int i=0 ; i<nrows ; i++) {
-        for (int j=0 ; j<col_data[i] ; j++){
-            printf("%d\t",data[i][j]);
-        }
-        printf("\n");
-    }
+    problem(&data, &col_data, &nrows);
     return 0;
 }
