@@ -77,34 +77,81 @@ fn problem1(
     let mut ny;
     let mut idex = index_exists(data, &x, &y);
     (nx, ny) = direction;
-    let mut places = HashSet::new();
-
+    let mut loops = HashSet::new();
     while idex {
         if data[x][y] == '#' {
             x = (x as i32 - nx) as usize;
             y = (y as i32 - ny) as usize;
             rotate(&mut nx, &mut ny);
         } else {
-            places.insert((x, y));
+            loops.insert((x, y));
         }
         x = (x as i32 + nx) as usize;
         y = (y as i32 + ny) as usize;
         idex = index_exists(data, &x, &y);
     }
-    places
+    loops
+}
+
+fn problem2_block(data: &[Vec<char>], rowid: &usize, colid: &usize, direction: (i32, i32)) -> i32 {
+    let mut x = *rowid;
+    let mut y = *colid;
+    let mut nx;
+    let mut ny;
+    let mut idex = index_exists(data, &x, &y);
+    (nx, ny) = direction;
+    let mut visited: HashSet<(usize, usize, i32, i32)> = HashSet::new();
+    let mut ret = 0;
+    let mut already;
+    while idex {
+        if data[x][y] == '#' {
+            x = (x as i32 - nx) as usize;
+            y = (y as i32 - ny) as usize;
+            already = !visited.insert((x, y, nx, ny));
+            if already {
+                ret += 1;
+                break;
+            }
+            rotate(&mut nx, &mut ny);
+        }
+        x = (x as i32 + nx) as usize;
+        y = (y as i32 + ny) as usize;
+        idex = index_exists(data, &x, &y);
+    }
+    ret
+}
+
+fn problem2(
+    places: &HashSet<(usize, usize)>,
+    data: &mut [Vec<char>],
+    rowid: &usize,
+    colid: &usize,
+    direction: (i32, i32),
+) -> i32 {
+    let xini = *rowid;
+    let yini = *colid;
+    let mut total = 0;
+    for (px, py) in places.iter() {
+        if (xini, yini) != (*px, *py) {
+            let charcpy = data[*px][*py];
+            data[*px][*py] = '#';
+            let loops = problem2_block(data, rowid, colid, direction);
+            total += loops;
+            data[*px][*py] = charcpy;
+        }
+    }
+    total
 }
 
 fn main() {
     let path = "../input.txt";
-    let contents = read_data(path);
-    let (x, y, (nx, ny)) = initial_position(&contents);
-    let places = problem1(
-        &contents,
-        &x.unwrap(),
-        &y.unwrap(),
-        (nx.unwrap(), ny.unwrap()),
-    );
-    println!("No. of places = {}", places.len())
+    let mut contents = read_data(path);
+    if let (Some(x), Some(y), (Some(nx), Some(ny))) = initial_position(&contents) {
+        let places = problem1(&contents, &x, &y, (nx, ny));
+        println!("No. of places = {}", places.len());
+        let loops = problem2(&places, &mut contents, &x, &y, (nx, ny));
+        println!("No. of loops = {}", loops)
+    }
 }
 
 #[cfg(test)]
@@ -143,7 +190,7 @@ mod tests {
     }
 
     #[test]
-    fn test_problem() {
+    fn test_problem_1() {
         let path = "../test.txt";
         let contents = read_data(path);
         let (x, y, (nx, ny)) = initial_position(&contents);
@@ -153,5 +200,40 @@ mod tests {
             &y.unwrap(),
             (nx.unwrap(), ny.unwrap()),
         );
+    }
+    #[test]
+    fn test_loop_count() {
+        let path = "../test.txt";
+        let path2 = "../test_1.txt";
+        let contents = read_data(path);
+        let contents2 = read_data(path2);
+        let (x, y, (nx, ny)) = initial_position(&contents);
+        let places = problem2_block(
+            &contents2,
+            &x.unwrap(),
+            &y.unwrap(),
+            (nx.unwrap(), ny.unwrap()),
+        );
+        assert_eq!(1, places);
+    }
+    #[test]
+    fn test_problem_2() {
+        let path = "../test.txt";
+        let mut contents = read_data(path);
+        let (x, y, (nx, ny)) = initial_position(&contents);
+        let places = problem1(
+            &contents,
+            &x.unwrap(),
+            &y.unwrap(),
+            (nx.unwrap(), ny.unwrap()),
+        );
+        let tot = problem2(
+            &places,
+            &mut contents,
+            &x.unwrap(),
+            &y.unwrap(),
+            (nx.unwrap(), ny.unwrap()),
+        );
+        assert_eq!(tot, 6);
     }
 }
