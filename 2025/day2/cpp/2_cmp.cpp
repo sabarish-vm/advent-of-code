@@ -1,6 +1,8 @@
 // Copyright (c) 2025 Sabarish. All Rights Reserved.
 #include <algorithm>
+#include <array>
 #include <charconv>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -8,30 +10,39 @@
 #include <iterator>
 #include <numeric>
 #include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
-#include <utility>
+#include <tuple>
 #include <vector>
 
-std::vector<int> get_factors(int const a) {
-  int start = 2;
-  auto res = std::vector<int>();
-  res.push_back(1);
-  while (start <= a / 2) {
-    if (a % start == 0) {
-      res.push_back(start);
+constexpr auto FACTORS = []() constexpr -> auto {
+  std::array<std::array<size_t, 6>, 15> result{};
+  std::array<size_t, 15> counts{};
+  for (size_t n = 2; n < 15; ++n) {
+    size_t count = 0;
+    for (size_t i = 1; i < n; ++i) {
+      if (n % i == 0) {
+        result[n][count++] = i;
+      }
     }
-    start++;
+    counts[n] = count;
   }
-  std::sort(res.begin(), res.end());
-  return res;
+  return std::tuple{result, counts};
+}();
+
+constexpr auto get_factors(size_t n) {
+  auto &result = std::get<0>(FACTORS);
+  auto &counts = std::get<1>(FACTORS);
+  auto &len = counts[n];
+  return std::span{result[n]}.first(len);
 }
 
 void counter(auto const &vec, auto &count, auto &count2) {
   for (auto const &num : vec) {
     std::int64_t current = 0;
     auto s1 = std::to_string(num);
-    auto slen = s1.length();
+    size_t slen = s1.length();
     if (slen > 1) {
       {
         auto half_len = slen / 2;
@@ -46,7 +57,7 @@ void counter(auto const &vec, auto &count, auto &count2) {
 
       {
         auto factors = get_factors(slen);
-        for (auto const &factor : factors) {
+        for (auto const factor : factors) {
           auto first_view = s1 | std::views::take(factor);
           auto prev = std::string_view(first_view.begin(), first_view.end());
 

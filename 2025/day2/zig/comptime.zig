@@ -1,31 +1,53 @@
 const std = @import("std");
 
-fn gen_factors(allocator: std.mem.Allocator) !std.AutoHashMap(usize, []usize) {
-    var factors = std.AutoHashMap(usize, []usize).init(allocator);
-    for (2..15) |elem| {
-        const llist = try get_factors(usize, elem, allocator);
-        try factors.put(elem, llist);
-    }
-    return factors;
-}
+const FactorTable = struct {
+    slice: [15][]usize,
+    heap: []usize,
+};
 
-fn get_factors(comptime T: type, a: T, allocator: std.mem.Allocator) ![]T {
-    var start: T = 2;
-    var index: usize = 1;
-    var res = [_]T{0} ** 15;
-    res[0] = 1;
-    while (start <= a / 2) {
-        if (a % start == 0) {
-            res[index] = start;
-            index += 1;
+fn makeHeapArray(allocator: std.mem.Allocator) !FactorTable {
+    const Comp = comptime blk: {
+        var s: [15][10]usize = undefined;
+        var c: [15]usize = undefined;
+
+        for (0..15) |n| {
+            var count: usize = 0;
+            if (n >= 2) {
+                for (1..(n / 2 + 1)) |i| {
+                    if (n % i == 0) {
+                        s[n][count] = i;
+                        count += 1;
+                    }
+                }
+            }
+            c[n] = count;
         }
-        start += 1;
+        s[0][0] = 0;
+        s[1][0] = 1;
+        c[0] = 1;
+        c[1] = 1;
+        break :blk .{ .storage = s, .counts = c };
+    };
+    var total: usize = 0;
+    for (Comp.counts) |val| {
+        total += val;
     }
-    const ret = try allocator.dupe(T, res[0..index]);
-    return ret;
+
+    var buf = try allocator.alloc(usize, total);
+    var result: [15][]usize = undefined;
+    var index: usize = 0;
+    for (0..15) |n| {
+        const len = Comp.counts[n];
+        result[n] = buf[index .. index + len];
+        for (0..len) |fi| {
+            result[n][fi] = Comp.storage[n][fi];
+        }
+        index += len;
+    }
+    return FactorTable{ .slice = result, .heap = buf };
 }
 
-fn counter(comptime T: type, vec: []T, c1: *T, c2: *T, allocator: std.mem.Allocator, map: std.AutoHashMap(usize, []usize)) !void {
+fn counter(comptime T: type, vec: []T, c1: *T, c2: *T, allocator: std.mem.Allocator, map: [15][]usize) !void {
     _ = allocator;
     for (vec) |num| {
         var current: T = 0;
@@ -42,7 +64,7 @@ fn counter(comptime T: type, vec: []T, c1: *T, c2: *T, allocator: std.mem.Alloca
                 c2.* += num;
                 continue;
             }
-            const factors = map.get(slen).?;
+            const factors = map[slen];
             for (factors) |factor| {
                 if (factor > 0) {
                     const first = s1[0..factor];
@@ -88,8 +110,8 @@ pub fn main() !void {
 
     var count1: u64 = 0;
     var count2: u64 = 0;
-    var fac = try gen_factors(allocator);
-    defer fac.deinit();
+    const heap_arr = try makeHeapArray(allocator);
+    defer allocator.free(heap_arr.heap);
 
     var c_it = std.mem.splitAny(u8, contents, ",");
     while (c_it.next()) |comma| {
@@ -106,7 +128,7 @@ pub fn main() !void {
         for (0..vec.len) |index| {
             vec[index] = v[0] + @as(u64, @intCast(index));
         }
-        try counter(u64, vec, &count1, &count2, allocator, fac);
+        try counter(u64, vec, &count1, &count2, allocator, heap_arr.slice);
     }
     std.debug.print("\n\n{d}\n{d}", .{ count1, count2 });
 }
